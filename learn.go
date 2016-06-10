@@ -42,17 +42,30 @@ func (c *LearnCommand) Execute(msg *Message) (*Message, error) {
 	}
 
 	if token == "learn" {
-		_, err := c.ins.Exec(strings.ToLower(txt[1]), txt[2])
-		msg.Text = fmt.Sprintf("OK, learned %s", txt[1])
+		target := strings.ToLower(txt[1])
 
-		fmt.Printf("%s %s", txt[1], txt[2])
+		if target == token || target == "?learn" {
+			msg.Text = "We must go deeper!"
+			return msg, nil
+		}
+
+		_, err := c.ins.Exec(target, txt[2])
+		msg.Text = fmt.Sprintf("OK, learned %s", txt[1])
 
 		return msg, err
 	}
 
 	if token == "unlearn" {
-		_, err := c.del.Exec(strings.ToLower(txt[1]), txt[2])
+		target := strings.ToLower(txt[1])
+
+		if target == token || target == "?unlearn" {
+			msg.Text = "Don't incept me!"
+			return msg, nil
+		}
+
+		_, err := c.del.Exec(target, txt[2])
 		msg.Text = fmt.Sprintf("Unlearned %s", txt[1])
+
 		return msg, err
 	}
 
