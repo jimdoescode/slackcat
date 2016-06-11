@@ -117,7 +117,7 @@ func (c *PlusCommand) denominationEquivalent(val int) string {
 			}
 
 			if val == 0 {
-				buf.WriteString(", and ")
+				buf.WriteString(" and ")
 			} else {
 				buf.WriteString(", ")
 			}
