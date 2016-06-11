@@ -30,6 +30,9 @@ func (c *PlusCommand) Execute(msg *SlackMessage) (*SlackMessage, error) {
 	}
 
 	target := strings.ToLower(txt[1])
+	if target[0] == '@' || target[0] == '#' {
+		target = target[1:]
+	}
 
 	var val int
 	err := c.sel.QueryRow(target).Scan(&val)
@@ -161,7 +164,7 @@ func NewPlusCommand() *PlusCommand {
 
 	upd, err := db.Prepare("UPDATE pluses SET count=? WHERE target=?")
 	if err != nil {
-		fmt.Printf("error preparing plus insert: %v\n", err)
+		fmt.Printf("error preparing plus update: %v\n", err)
 		return nil
 	}
 
