@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
+	"regexp"
 	"strings"
 )
 
@@ -14,8 +15,7 @@ type LearnCommand struct {
 	sel *sql.Stmt
 }
 
-func (c *LearnCommand) Execute(msg *Message) (*Message, error) {
-
+func (c *LearnCommand) Execute(msg *SlackMessage) (*SlackMessage, error) {
 	txt := strings.SplitN(msg.Text, " ", 3)
 
 	if len(txt[0]) < 2 {
@@ -32,7 +32,7 @@ func (c *LearnCommand) Execute(msg *Message) (*Message, error) {
 			return nil, nil
 		}
 
-		msg.Text = val
+		msg.Text = c.parseText(val)
 		return msg, err
 	}
 
@@ -44,7 +44,7 @@ func (c *LearnCommand) Execute(msg *Message) (*Message, error) {
 	if token == "learn" {
 		target := strings.ToLower(txt[1])
 
-		if target == token || target == "?learn" {
+		if target == token {
 			msg.Text = "We must go deeper!"
 			return msg, nil
 		}
@@ -58,7 +58,7 @@ func (c *LearnCommand) Execute(msg *Message) (*Message, error) {
 	if token == "unlearn" {
 		target := strings.ToLower(txt[1])
 
-		if target == token || target == "?unlearn" {
+		if target == token {
 			msg.Text = "Don't incept me!"
 			return msg, nil
 		}
@@ -77,6 +77,23 @@ func (c *LearnCommand) Close() {
 	c.del.Close()
 	c.ins.Close()
 	c.db.Close()
+}
+
+func (c *LearnCommand) parseText(txt string) string {
+	re := regexp.MustCompile("\\?([^\\s]+)")
+	vars := re.FindAllStringSubmatch(txt, -1)
+
+	for _, v := range vars {
+		var val string
+		err := c.sel.QueryRow(v[1]).Scan(&val)
+		if err != nil {
+			val = v[0]
+		}
+
+		txt = strings.Replace(txt, v[0], val, 1)
+	}
+
+	return txt
 }
 
 func NewLearnCommand() *LearnCommand {

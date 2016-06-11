@@ -11,6 +11,7 @@ func main() {
 
 	//TODO: Add commands to this slice
 	cmds := []SlackCatCommand{
+		NewPlusCommand(),
 		NewLearnCommand(),
 	}
 
@@ -42,9 +43,9 @@ func main() {
 			continue
 		}
 
-		msg.Text = bot.ParseText(msg.Text)
+		msg.Text = bot.DecodeText(msg.Text)
 
-		go func(msg *Message, bot *SlackBot, cmds []SlackCatCommand) {
+		go func(msg *SlackMessage, bot *SlackBot, cmds []SlackCatCommand) {
 
 			for _, cmd := range cmds {
 				resp, err := cmd.Execute(msg)
@@ -73,6 +74,6 @@ func main() {
 }
 
 type SlackCatCommand interface {
-	Execute(msg *Message) (*Message, error)
+	Execute(msg *SlackMessage) (*SlackMessage, error)
 	Close()
 }
