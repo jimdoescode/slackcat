@@ -6,6 +6,7 @@ import (
 	"golang.org/x/net/websocket"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"sync/atomic"
@@ -37,6 +38,7 @@ type user struct {
 func NewSlackBot(token string) (*SlackBot, error) {
 	url := fmt.Sprintf("https://slack.com/api/rtm.start?token=%s", token)
 	resp, err := http.Get(url)
+
 	if err != nil {
 		return nil, err
 	}
@@ -47,6 +49,9 @@ func NewSlackBot(token string) (*SlackBot, error) {
 
 	body, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
 
 	var respObj rtmStart
 	err = json.Unmarshal(body, &respObj)
@@ -64,11 +69,12 @@ func NewSlackBot(token string) (*SlackBot, error) {
 	}
 
 	//Move users and channels into maps keyed by id
-	return &SlackBot{respObj.Self.Id, ws, 0, respObj.Users, respObj.Channels}, nil
+	return &SlackBot{respObj.Self.Id, token, ws, 0, respObj.Users, respObj.Channels}, nil
 }
 
 type SlackBot struct {
 	id       string
+	token    string
 	conn     *websocket.Conn
 	counter  uint64
 	users    []user
@@ -207,4 +213,51 @@ func (b *SlackBot) PostMessage(msg *SlackMessage) error {
 	msg.User = b.id
 	msg.Text = b.EncodeText(msg.Text)
 	return websocket.JSON.Send(b.conn, *msg)
+}
+
+func (b *SlackBot) SetChannelTopic(name string, topic string) error {
+	channels := map[string]string{}
+	for _, c := range b.channels {
+		channels[c.Name] = c.Id
+	}
+
+	set := &url.URL{
+		Scheme: "https",
+		Host:   "slack.com",
+		Path:   "api/channels.setTopic",
+	}
+
+	params := set.Query()
+	params.Add("token", b.token)
+	params.Add("channel", channels[name])
+	params.Add("topic", topic)
+	set.RawQuery = params.Encode()
+
+	resp, err := http.Get(set.String())
+
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("API request failed with code %d", resp.StatusCode)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return err
+	}
+
+	var respObj rtmStart
+	err = json.Unmarshal(body, &respObj)
+	if err != nil {
+		return err
+	}
+
+	if !respObj.Ok {
+		return fmt.Errorf("Slack error: %s", respObj.Error)
+	}
+
+	return nil
 }

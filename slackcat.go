@@ -12,6 +12,7 @@ func main() {
 	//TODO: Add commands to this slice
 	cmds := []SlackCatCommand{
 		NewPlusCommand(),
+		NewGiphyCommand(),
 		NewLearnCommand(),
 	}
 
@@ -39,7 +40,7 @@ func main() {
 		}
 
 		//If there isn't a message or it doesn't start with a question mark
-		if msg == nil || !strings.HasPrefix(msg.Text, "?") {
+		if msg == nil || !strings.HasPrefix(msg.Text, "?") || len(msg.Text) < 2 {
 			continue
 		}
 

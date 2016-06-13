@@ -17,11 +17,6 @@ type LearnCommand struct {
 
 func (c *LearnCommand) Execute(msg *SlackMessage) (*SlackMessage, error) {
 	txt := strings.SplitN(msg.Text, " ", 3)
-
-	if len(txt[0]) < 2 {
-		return nil, nil
-	}
-
 	token := strings.ToLower(txt[0][1:])
 
 	if token != "learn" && token != "unlearn" {
