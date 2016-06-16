@@ -10,10 +10,11 @@ import (
 )
 
 type PlusCommand struct {
-	db  *sql.DB
-	ins *sql.Stmt
-	upd *sql.Stmt
-	sel *sql.Stmt
+	db       *sql.DB
+	ins      *sql.Stmt
+	upd      *sql.Stmt
+	sel      *sql.Stmt
+	selDenom *sql.Stmt
 }
 
 func (c *PlusCommand) Execute(msg *SlackMessage) (*SlackMessage, error) {
@@ -25,11 +26,12 @@ func (c *PlusCommand) Execute(msg *SlackMessage) (*SlackMessage, error) {
 	}
 
 	if len(txt) < 2 {
-		msg.Text = "Syntax: ?++|-- <target>"
+		msg.Text = c.GetSyntax()
 		return msg, nil
 	}
 
 	target := strings.ToLower(txt[1])
+	//Strip user or channel symbols
 	if target[0] == '@' || target[0] == '#' {
 		target = target[1:]
 	}
@@ -74,8 +76,9 @@ func (c *PlusCommand) getMessage(add bool, target string, user string, val int) 
 	}
 
 	buf.WriteString(fmt.Sprintf("%s now has %s.", target, c.pluralize(val, "plus")))
-	if val > 0 {
-		buf.WriteString(fmt.Sprintf("\n\nThat's equivalent to %s", c.denominationEquivalent(val)))
+	denom := c.denominationEquivalent(val)
+	if denom != "" {
+		buf.WriteString(fmt.Sprintf("\n\nThat's equivalent to %s", denom))
 	}
 
 	return buf.String()
@@ -83,7 +86,27 @@ func (c *PlusCommand) getMessage(add bool, target string, user string, val int) 
 
 func (c *PlusCommand) denominationEquivalent(val int) string {
 	buf := bytes.NewBufferString("")
-	denoms := map[int]string{
+	if c.selDenom == nil {
+		return ""
+	}
+
+	rows, err := c.selDenom.Query()
+	defer rows.Close()
+
+	denoms := make(map[int]string)
+	for rows.Next() {
+		var val int
+		var name string
+		err = rows.Scan(&val, &name)
+		if err != nil {
+			return ""
+		}
+
+		denoms[val] = name
+	}
+
+	/*denoms := map[int]string{
+		-5:   "Krossover Kredit",
 		1:    "Schrute Buck",
 		5:    "Stanley Nickel",
 		10:   "Pizza Slice",
@@ -94,20 +117,32 @@ func (c *PlusCommand) denominationEquivalent(val int) string {
 		250:  "Leprechaun",
 		500:  "Presidential Fist Bump",
 		1000: "Unicorn",
-	}
+	}*/
 
 	// To store the keys in slice in sorted order
 	var keys []int
 	for k := range denoms {
 		keys = append(keys, k)
 	}
-	sort.Sort(sort.Reverse(sort.IntSlice(keys)))
+
+	if val < 0 {
+		sort.Sort(sort.IntSlice(keys))
+	} else {
+		sort.Sort(sort.Reverse(sort.IntSlice(keys)))
+	}
 
 	for _, denom := range keys {
 		coins := 0
-		for denom <= val {
-			val -= denom
-			coins += 1
+		if val > 0 && denom > 0 {
+			for denom <= val {
+				val -= denom
+				coins += 1
+			}
+		} else if val < 0 && denom < 0 {
+			for denom >= val {
+				val -= denom
+				coins += 1
+			}
 		}
 
 		if coins > 0 {
@@ -126,6 +161,11 @@ func (c *PlusCommand) denominationEquivalent(val int) string {
 		}
 	}
 
+	//If we are making an approximation due to denomination gaps.
+	if val != 0 && buf.Len() != 0 {
+		buf.WriteString(" and a little extra")
+	}
+
 	return buf.String()
 }
 
@@ -140,7 +180,12 @@ func (c *PlusCommand) pluralize(val int, txt string) string {
 	return fmt.Sprintf("%d %ss", val, txt)
 }
 
+func (c *PlusCommand) GetSyntax() string {
+	return "Syntax: ?++|-- <target>"
+}
+
 func (c *PlusCommand) Close() {
+	c.selDenom.Close()
 	c.sel.Close()
 	c.upd.Close()
 	c.ins.Close()
@@ -174,5 +219,7 @@ func NewPlusCommand() *PlusCommand {
 		return nil
 	}
 
-	return &PlusCommand{db, ins, upd, sel}
+	selDenom, err := db.Prepare("SELECT * FROM plus_denominations")
+
+	return &PlusCommand{db, ins, upd, sel, selDenom}
 }

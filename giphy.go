@@ -12,25 +12,19 @@ import (
 )
 
 type giphyResp struct {
-	Data []giphyData `json:"data"`
-	Meta giphyMeta   `json:"meta"`
-}
-
-type giphyData struct {
-	Type   string              `json:"type"`
-	Id     string              `json:"id"`
-	Images map[string]giphyImg `json:"images"`
-}
-
-type giphyImg struct {
-	Url    string
-	Width  string
-	Height string
-}
-
-type giphyMeta struct {
-	Status int    `json:"status"`
-	Error  string `json:"msg"`
+	Data []struct {
+		Type   string `json:"type"`
+		Id     string `json:"id"`
+		Images map[string]struct {
+			Url    string
+			Width  string
+			Height string
+		} `json:"images"`
+	} `json:"data"`
+	Meta struct {
+		Status int    `json:"status"`
+		Error  string `json:"msg"`
+	} `json:"meta"`
 }
 
 type GiphyCommand struct {
@@ -48,7 +42,7 @@ func (c *GiphyCommand) Execute(msg *SlackMessage) (*SlackMessage, error) {
 	}
 
 	if len(txt) < 2 {
-		msg.Text = "Syntax: ?giphy <search>"
+		msg.Text = c.GetSyntax()
 		return msg, nil
 	}
 
@@ -93,6 +87,10 @@ func (c *GiphyCommand) Execute(msg *SlackMessage) (*SlackMessage, error) {
 	}
 
 	return msg, nil
+}
+
+func (c *GiphyCommand) GetSyntax() string {
+	return "Syntax: ?giphy <search>"
 }
 
 func (c *GiphyCommand) Close() {

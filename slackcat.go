@@ -12,6 +12,7 @@ func main() {
 	//TODO: Add commands to this slice
 	cmds := []SlackCatCommand{
 		NewPlusCommand(),
+		NewPlusDenominationCommand(),
 		NewGiphyCommand(),
 		NewLearnCommand(),
 	}
@@ -34,8 +35,9 @@ func main() {
 
 	for {
 		msg, err := bot.GetMessage()
+
 		if err != nil {
-			fmt.Printf("error getting message: %v\n", err)
+			fmt.Printf("error getting or sending a message: %v\n", err)
 			continue
 		}
 
@@ -46,35 +48,44 @@ func main() {
 
 		msg.Text = bot.DecodeText(msg.Text)
 
-		go func(msg *SlackMessage, bot *SlackBot, cmds []SlackCatCommand) {
+		//TODO If they type help or something then we want to handle that here and pass that to the commands to determine which command they might want.
 
-			for _, cmd := range cmds {
-				resp, err := cmd.Execute(msg)
-				if err != nil {
-					fmt.Printf("error executing command: %v\n", err)
-					break
-				}
+		go findAndExecute(msg, cmds, bot)
+	}
+}
 
-				if resp == nil {
-					continue
-				}
+func findAndExecuteHelp(msg *SlackMessage, cmds []SlackCatCommand, bot *SlackBot) {
 
-				resp.Channel = msg.Channel
-				resp.Id = msg.Id
-				resp.Type = msg.Type
-				err = bot.PostMessage(resp)
+}
 
-				if err != nil {
-					fmt.Printf("error sending message: %v\n", err)
-				}
+func findAndExecute(msg *SlackMessage, cmds []SlackCatCommand, bot *SlackBot) {
+	for _, cmd := range cmds {
+		resp, err := cmd.Execute(msg)
+		if err != nil {
+			fmt.Printf("error executing command: %v\n", err)
+			break
+		}
 
-				break
-			}
-		}(msg, bot, cmds)
+		if resp == nil {
+			continue
+		}
+
+		resp.Channel = msg.Channel
+		resp.Id = msg.Id
+		resp.Type = msg.Type
+
+		if err != nil {
+			fmt.Printf("error sending message: %v\n", err)
+		}
+
+		bot.PostMessage(msg)
+
+		break
 	}
 }
 
 type SlackCatCommand interface {
 	Execute(msg *SlackMessage) (*SlackMessage, error)
+	GetSyntax() string
 	Close()
 }

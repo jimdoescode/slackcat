@@ -13,16 +13,14 @@ import (
 )
 
 type rtmStart struct {
-	Ok       bool      `json:"ok"`
-	Error    string    `json:"error"`
-	Url      string    `json:"url"`
-	Self     self      `json:"self"`
+	Ok    bool   `json:"ok"`
+	Error string `json:"error"`
+	Url   string `json:"url"`
+	Self  struct {
+		Id string `json:"id"`
+	} `json:"self"`
 	Channels []channel `json:"channels"`
 	Users    []user    `json:"users"`
-}
-
-type self struct {
-	Id string `json:"id"`
 }
 
 type channel struct {

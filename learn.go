@@ -32,7 +32,7 @@ func (c *LearnCommand) Execute(msg *SlackMessage) (*SlackMessage, error) {
 	}
 
 	if len(txt) < 3 {
-		msg.Text = "Syntax: ?(un)learn <target> <value>"
+		msg.Text = c.GetSyntax()
 		return msg, nil
 	}
 
@@ -65,6 +65,10 @@ func (c *LearnCommand) Execute(msg *SlackMessage) (*SlackMessage, error) {
 	}
 
 	return nil, nil
+}
+
+func (c *LearnCommand) GetSyntax() string {
+	return "Syntax: ?(un)learn <target> <value>"
 }
 
 func (c *LearnCommand) Close() {
