@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/nlopes/slack"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -28,22 +29,21 @@ type giphyResp struct {
 }
 
 type GiphyCommand struct {
+	rtm    *slack.RTM
 	cli    *http.Client
 	search *url.URL
 	key    string
 }
 
-func (c *GiphyCommand) Execute(msg *SlackMessage) (*SlackMessage, error) {
-	txt := strings.SplitN(msg.Text, " ", 2)
-	token := strings.ToLower(txt[0][1:])
+func (c *GiphyCommand) Matches(msg *slack.Msg) bool {
+	return strings.HasPrefix(msg.Text, "?giphy ")
+}
 
-	if token != "giphy" {
-		return nil, nil
-	}
+func (c *GiphyCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
+	txt := strings.SplitN(msg.Text, " ", 2)
 
 	if len(txt) < 2 {
-		msg.Text = c.GetSyntax()
-		return msg, nil
+		return nil, fmt.Errorf("Invalid Syntax")
 	}
 
 	q := c.search.Query()
@@ -53,51 +53,54 @@ func (c *GiphyCommand) Execute(msg *SlackMessage) (*SlackMessage, error) {
 	c.search.RawQuery = q.Encode()
 
 	resp, err := c.cli.Get(c.search.String())
-	defer resp.Body.Close()
 
 	if err != nil {
+		resp.Body.Close()
 		return nil, err
 	}
 
 	if resp.StatusCode != 200 {
+		resp.Body.Close()
 		return nil, fmt.Errorf("API request failed with code %d", resp.StatusCode)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		resp.Body.Close()
 		return nil, err
 	}
 
 	var respObj giphyResp
 	err = json.Unmarshal(body, &respObj)
 	if err != nil {
+		resp.Body.Close()
 		return nil, err
 	}
 
 	if respObj.Meta.Status != 200 {
+		resp.Body.Close()
 		return nil, fmt.Errorf("Giphy error: %s", respObj.Meta.Error)
 	}
 
-	if len(respObj.Data) == 0 {
-		msg.Text = "Giphy don't know"
-	} else {
+	out := c.rtm.NewOutgoingMessage("Giphy don't know", msg.Channel)
+	if len(respObj.Data) > 0 {
 		rand.Seed(time.Now().Unix())
 		randData := respObj.Data[rand.Intn(len(respObj.Data))]
-		msg.Text = randData.Images["downsized"].Url
+		out.Text = randData.Images["downsized"].Url
 	}
 
-	return msg, nil
+	return out, nil
 }
 
 func (c *GiphyCommand) GetSyntax() string {
-	return "Syntax: ?giphy <search>"
+	return "?giphy <search>"
 }
 
 func (c *GiphyCommand) Close() {
 
 }
 
-func NewGiphyCommand() *GiphyCommand {
+func NewGiphyCommand(rtm *slack.RTM) *GiphyCommand {
 	search := &url.URL{
 		Scheme: "http",
 		Host:   "api.giphy.com",
@@ -105,6 +108,7 @@ func NewGiphyCommand() *GiphyCommand {
 	}
 
 	return &GiphyCommand{
+		rtm,
 		&http.Client{},
 		search,
 		"dc6zaTOxFJmzC",

@@ -5,11 +5,14 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/nlopes/slack"
+	"regexp"
 	"sort"
 	"strings"
 )
 
 type PlusCommand struct {
+	rtm      *slack.RTM
 	db       *sql.DB
 	ins      *sql.Stmt
 	upd      *sql.Stmt
@@ -17,27 +20,29 @@ type PlusCommand struct {
 	selDenom *sql.Stmt
 }
 
-func (c *PlusCommand) Execute(msg *SlackMessage) (*SlackMessage, error) {
+func (c *PlusCommand) Matches(msg *slack.Msg) bool {
+	return strings.HasPrefix(msg.Text, "?++ ") ||
+		strings.HasPrefix(msg.Text, "?-- ")
+}
+
+func (c *PlusCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
 	txt := strings.SplitN(msg.Text, " ", 3)
 	token := strings.ToLower(txt[0][1:])
-
-	if token != "++" && token != "--" {
+	owner, err := c.rtm.GetUserInfo(msg.User)
+	if err != nil {
+		fmt.Printf("error getting user info: %v\n", err)
 		return nil, nil
 	}
 
 	if len(txt) < 2 {
-		msg.Text = c.GetSyntax()
-		return msg, nil
+		out := c.rtm.NewOutgoingMessage(c.GetSyntax(), msg.Channel)
+		return out, nil
 	}
 
-	target := strings.ToLower(txt[1])
-	//Strip user or channel symbols
-	if target[0] == '@' || target[0] == '#' {
-		target = target[1:]
-	}
+	target := c.parseTarget(txt[1])
 
 	var val int
-	err := c.sel.QueryRow(target).Scan(&val)
+	err = c.sel.QueryRow(target).Scan(&val)
 	if err != nil {
 		fmt.Printf("error searching db: %v\n", err)
 		c.ins.Exec(target, 0)
@@ -45,13 +50,12 @@ func (c *PlusCommand) Execute(msg *SlackMessage) (*SlackMessage, error) {
 	}
 
 	add := (token == "++")
-	owner := (target == msg.User || target == msg.User[1:])
 
 	if add {
 		val += 1
-		if owner {
-			msg.Text = "You'll go blind that way."
-			return msg, nil
+		if target == owner.Name {
+			out := c.rtm.NewOutgoingMessage("You'll go blind that way.", msg.Channel)
+			return out, nil
 		}
 	} else {
 		val -= 1
@@ -62,9 +66,28 @@ func (c *PlusCommand) Execute(msg *SlackMessage) (*SlackMessage, error) {
 		fmt.Printf("error updating db: %v\n", err)
 	}
 
-	msg.Text = c.getMessage(add, target, msg.User, val)
+	out := c.rtm.NewOutgoingMessage(c.getMessage(add, txt[1], owner.Name, val), msg.Channel)
+	return out, err
+}
 
-	return msg, err
+func (c *PlusCommand) parseTarget(txt string) string {
+	userReg := regexp.MustCompile(`^<@(\w+)>$`)
+	chanReg := regexp.MustCompile(`^<#(\w+)\|?(\w*)>$`)
+	if userReg.MatchString(txt) {
+		vars := userReg.FindStringSubmatch(txt)
+		user, err := c.rtm.GetUserInfo(vars[1])
+		if err == nil {
+			txt = user.Name
+		}
+	} else if chanReg.MatchString(txt) {
+		vars := chanReg.FindStringSubmatch(txt)
+		ch, err := c.rtm.GetChannelInfo(vars[1])
+		if err == nil {
+			txt = ch.Name
+		}
+	}
+
+	return strings.ToLower(txt)
 }
 
 func (c *PlusCommand) getMessage(add bool, target string, user string, val int) string {
@@ -181,7 +204,7 @@ func (c *PlusCommand) pluralize(val int, txt string) string {
 }
 
 func (c *PlusCommand) GetSyntax() string {
-	return "Syntax: ?++|-- <target>"
+	return "?++|-- <target>"
 }
 
 func (c *PlusCommand) Close() {
@@ -192,7 +215,7 @@ func (c *PlusCommand) Close() {
 	c.db.Close()
 }
 
-func NewPlusCommand() *PlusCommand {
+func NewPlusCommand(rtm *slack.RTM) *PlusCommand {
 	db, err := sql.Open("sqlite3", "./slackcat.db")
 	if err != nil {
 		fmt.Printf("error creating plus command: %v\n", err)
@@ -221,5 +244,5 @@ func NewPlusCommand() *PlusCommand {
 
 	selDenom, err := db.Prepare("SELECT * FROM plus_denominations")
 
-	return &PlusCommand{db, ins, upd, sel, selDenom}
+	return &PlusCommand{rtm, db, ins, upd, sel, selDenom}
 }

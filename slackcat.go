@@ -2,19 +2,32 @@ package main
 
 import (
 	"fmt"
+	"github.com/nlopes/slack"
 	"log"
 	"os"
-	"strings"
 )
 
 func main() {
 
+	if len(os.Args) != 2 {
+		fmt.Fprintf(os.Stderr, "usage: slackcat slack-bot-token\n")
+		os.Exit(1)
+	}
+
+	client := slack.New(os.Args[1])
+	logger := log.New(os.Stdout, "slack-bot: ", log.Lshortfile|log.LstdFlags)
+	slack.SetLogger(logger)
+
+	rtm := client.NewRTM()
+	defer rtm.Disconnect()
+	go rtm.ManageConnection()
+
 	//TODO: Add commands to this slice
 	cmds := []SlackCatCommand{
-		NewPlusCommand(),
-		NewPlusDenominationCommand(),
-		NewGiphyCommand(),
-		NewLearnCommand(),
+		NewPlusCommand(rtm),
+		NewPlusDenominationCommand(rtm),
+		NewGiphyCommand(rtm),
+		NewLearnCommand(rtm),
 	}
 
 	defer func(cmds []SlackCatCommand) {
@@ -23,69 +36,27 @@ func main() {
 		}
 	}(cmds)
 
-	if len(os.Args) != 2 {
-		fmt.Fprintf(os.Stderr, "usage: slackcat slack-bot-token\n")
-		os.Exit(1)
-	}
+	for msg := range rtm.IncomingEvents {
+		switch ev := msg.Data.(type) {
+		case *slack.MessageEvent:
+			for _, cmd := range cmds {
+				if cmd.Matches(&ev.Msg) {
+					out, _ := cmd.Execute(&ev.Msg)
+					if out != nil {
+						rtm.SendMessage(out)
+						break
+					}
+				}
+			}
+		default:
 
-	bot, err := NewSlackBot(os.Args[1])
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for {
-		msg, err := bot.GetMessage()
-
-		if err != nil {
-			fmt.Printf("error getting or sending a message: %v\n", err)
-			continue
 		}
-
-		//If there isn't a message or it doesn't start with a question mark
-		if msg == nil || !strings.HasPrefix(msg.Text, "?") || len(msg.Text) < 2 {
-			continue
-		}
-
-		msg.Text = bot.DecodeText(msg.Text)
-
-		//TODO If they type help or something then we want to handle that here and pass that to the commands to determine which command they might want.
-
-		go findAndExecute(msg, cmds, bot)
-	}
-}
-
-func findAndExecuteHelp(msg *SlackMessage, cmds []SlackCatCommand, bot *SlackBot) {
-
-}
-
-func findAndExecute(msg *SlackMessage, cmds []SlackCatCommand, bot *SlackBot) {
-	for _, cmd := range cmds {
-		resp, err := cmd.Execute(msg)
-		if err != nil {
-			fmt.Printf("error executing command: %v\n", err)
-			break
-		}
-
-		if resp == nil {
-			continue
-		}
-
-		resp.Channel = msg.Channel
-		resp.Id = msg.Id
-		resp.Type = msg.Type
-
-		if err != nil {
-			fmt.Printf("error sending message: %v\n", err)
-		}
-
-		bot.PostMessage(msg)
-
-		break
 	}
 }
 
 type SlackCatCommand interface {
-	Execute(msg *SlackMessage) (*SlackMessage, error)
+	Matches(msg *slack.Msg) bool
+	Execute(msg *slack.Msg) (*slack.OutgoingMessage, error)
 	GetSyntax() string
 	Close()
 }

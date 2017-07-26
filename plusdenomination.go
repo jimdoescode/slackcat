@@ -5,45 +5,49 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
-	//"sort"
+	"github.com/nlopes/slack"
 	"strconv"
 	"strings"
 	"text/tabwriter"
 )
 
 type PlusDenominationCommand struct {
+	rtm *slack.RTM
 	db  *sql.DB
 	ins *sql.Stmt
 	del *sql.Stmt
 	sel *sql.Stmt
 }
 
-func (c *PlusDenominationCommand) Execute(msg *SlackMessage) (*SlackMessage, error) {
+func (c *PlusDenominationCommand) Matches(msg *slack.Msg) bool {
+	return strings.HasPrefix(msg.Text, "?++d") ||
+		strings.HasPrefix(msg.Text, "?--d")
+}
+
+func (c *PlusDenominationCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
 	txt := strings.SplitN(msg.Text, " ", 3)
 	token := strings.ToLower(txt[0][1:])
 
-	if token != "++d" && token != "--d" {
-		return nil, nil
-	}
-
 	if len(txt) == 1 {
-		var err error
-		msg.Text, err = c.getDenominationsDisplay()
-		return msg, err
+		disp, err := c.getDenominationsDisplay()
+		out := c.rtm.NewOutgoingMessage(disp, msg.Channel)
+		return out, err
 	} else if len(txt) < 3 {
-		msg.Text = c.GetSyntax()
-		return msg, nil
+		disp := c.GetSyntax()
+		out := c.rtm.NewOutgoingMessage(disp, msg.Channel)
+		return out, nil
 	}
 
 	idx, err := strconv.Atoi(txt[1])
 	if err != nil {
-		msg.Text = c.GetSyntax()
-		return msg, err
+		disp := c.GetSyntax()
+		out := c.rtm.NewOutgoingMessage(disp, msg.Channel)
+		return out, err
 	}
 
 	if idx == 0 {
-		msg.Text = fmt.Sprintf("0 ain't no denomination!")
-		return msg, nil
+		out := c.rtm.NewOutgoingMessage("0 ain't no denomination!", msg.Channel)
+		return out, nil
 	}
 
 	c.del.Exec(idx)
@@ -51,21 +55,22 @@ func (c *PlusDenominationCommand) Execute(msg *SlackMessage) (*SlackMessage, err
 	if token == "++d" {
 		_, err := c.ins.Exec(idx, txt[2])
 		if err != nil {
-			msg.Text = c.GetSyntax()
-			return msg, err
+			disp := c.GetSyntax()
+			out := c.rtm.NewOutgoingMessage(disp, msg.Channel)
+			return out, err
 		}
-		msg.Text = fmt.Sprintf("OK, added plus denomination %s", txt[2])
-	} else {
-		msg.Text = fmt.Sprintf("OK, removed plus denomination %s", txt[2])
+		out := c.rtm.NewOutgoingMessage(fmt.Sprintf("OK, added plus denomination %s", txt[2]), msg.Channel)
+		return out, nil
 	}
 
-	return msg, nil
+	out := c.rtm.NewOutgoingMessage(fmt.Sprintf("OK, removed plus denomination %s", txt[2]), msg.Channel)
+	return out, nil
 }
 
 func (c *PlusDenominationCommand) getDenominationsDisplay() (string, error) {
 	rows, err := c.sel.Query()
-	defer rows.Close()
 	if err != nil {
+		rows.Close()
 		return "", err
 	}
 
@@ -76,6 +81,7 @@ func (c *PlusDenominationCommand) getDenominationsDisplay() (string, error) {
 		var name string
 		err = rows.Scan(&val, &name)
 		if err != nil {
+			rows.Close()
 			return "", err
 		}
 
@@ -83,11 +89,12 @@ func (c *PlusDenominationCommand) getDenominationsDisplay() (string, error) {
 	}
 	fmt.Fprint(w, "```")
 	w.Flush()
+	rows.Close()
 	return buf.String(), nil
 }
 
 func (c *PlusDenominationCommand) GetSyntax() string {
-	return "syntax: ?(++|--)d <plus count> <name>"
+	return "?(++|--)d <plus count> <name>"
 }
 
 func (c *PlusDenominationCommand) Close() {
@@ -97,7 +104,7 @@ func (c *PlusDenominationCommand) Close() {
 	c.db.Close()
 }
 
-func NewPlusDenominationCommand() *PlusDenominationCommand {
+func NewPlusDenominationCommand(rtm *slack.RTM) *PlusDenominationCommand {
 	db, err := sql.Open("sqlite3", "./slackcat.db")
 	if err != nil {
 		fmt.Printf("error creating plus command: %v\n", err)
@@ -124,5 +131,5 @@ func NewPlusDenominationCommand() *PlusDenominationCommand {
 		return nil
 	}
 
-	return &PlusDenominationCommand{db, ins, del, sel}
+	return &PlusDenominationCommand{rtm, db, ins, del, sel}
 }
