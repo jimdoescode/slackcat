@@ -12,19 +12,23 @@ $ go get github.com/jimdoescode/slackcat
 ```
 Which will install slackcat to where ever you have go configured to install packages.
 
-####Building
+### Building
+
 ```bash
 $ go build
 ```
 
-####Running
+### Running
+
 ```bash
-$ slackcat <SLACKBOT_TOKEN>
+$ slackcat <SLACKBOT_TOKEN> <YOUR_SLACK_USERID>
 ```
 
-####Dependencies
+### Dependencies
 - [golang](https://golang.org/)
 - [sqlite](https://www.sqlite.org/)
+- [slack api](https://godoc.org/github.com/nlopes/slack)
+- [go-git](https://godoc.org/gopkg.in/src-d/go-git.v4)
 
 
 Commands
@@ -36,5 +40,11 @@ Commands
 - **Plus** `Syntax: ?++|-- <target>` 
 
   Is a way of giving arbitrary internet points to a target.
+- **Giphy** `Syntax: ?giphy <search query>`
+
+  Does a standard giphy search.
+- **Update** `Syntax: ?update`
+
+  Will pull down the latest changes to slack cat and rebuild the binary then shut slack cat down so it can be restarted.
 
 *Multiple commands cannot currently be combined for safety reasons.*
