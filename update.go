@@ -24,24 +24,27 @@ func (c *UpdateCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) 
 
 	repo, err := git.PlainOpen("./")
 	if err != nil {
-		status = c.rtm.NewOutgoingMessage("Error opening repository.", msg.Channel)
+		status = c.rtm.NewOutgoingMessage("Error opening repository. Halting update.", msg.Channel)
 		return status, err
 	}
 
 	err = repo.Pull(&git.PullOptions{})
-	if err != nil {
-		status = c.rtm.NewOutgoingMessage("Error pulling repository.", msg.Channel)
+	if err == git.NoErrAlreadyUpToDate {
+		status = c.rtm.NewOutgoingMessage("No changes detected. Halting update.", msg.Channel)
+		return status, nil
+	} else if err != nil {
+		status = c.rtm.NewOutgoingMessage("Error pulling repository. Halting update.", msg.Channel)
 		return status, err
+	} else {
+		status = c.rtm.NewOutgoingMessage("Repo updated. Recompiling...", msg.Channel)
+		c.rtm.SendMessage(status)
 	}
-
-	status = c.rtm.NewOutgoingMessage("Repo updated. Recompiling...", msg.Channel)
-	c.rtm.SendMessage(status)
 
 	cmd := exec.Command("go", "build")
 	err = cmd.Run()
 
 	if err != nil {
-		status = c.rtm.NewOutgoingMessage("Error recompiling.", msg.Channel)
+		status = c.rtm.NewOutgoingMessage("Error recompiling. Halting update.", msg.Channel)
 		return status, err
 	}
 
