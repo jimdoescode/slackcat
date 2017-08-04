@@ -44,6 +44,7 @@ func main() {
 		NewPlusCommand(rtm),
 		NewPlusDenominationCommand(rtm),
 		NewGiphyCommand(rtm),
+		NewHaltCommand(rtm),
 		NewUpdateCommand(rtm),
 		//Learn command should match everything so keep it last
 		NewLearnCommand(rtm),
