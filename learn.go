@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/nlopes/slack"
 	"regexp"
 	"strings"
@@ -11,7 +10,6 @@ import (
 
 type LearnCommand struct {
 	rtm *slack.RTM
-	db  *sql.DB
 	ins *sql.Stmt
 	del *sql.Stmt
 	sel *sql.Stmt
@@ -93,7 +91,6 @@ func (c *LearnCommand) Close() {
 	c.sel.Close()
 	c.del.Close()
 	c.ins.Close()
-	c.db.Close()
 }
 
 func (c *LearnCommand) parseTarget(txt string) string {
@@ -133,13 +130,7 @@ func (c *LearnCommand) parseText(txt string) string {
 	return txt
 }
 
-func NewLearnCommand(rtm *slack.RTM) *LearnCommand {
-	db, err := sql.Open("sqlite3", "./slackcat.db")
-	if err != nil {
-		fmt.Printf("error creating learn command: %v\n", err)
-		return nil
-	}
-
+func NewLearnCommand(rtm *slack.RTM, db *sql.DB) *LearnCommand {
 	db.Exec("CREATE TABLE learns (target TEXT NOT NULL, value TEXT NOT NULL)")
 	db.Exec("CREATE INDEX target_idx IF NOT EXISTS ON learns (target)")
 	db.Exec("CREATE INDEX target_value_idx IF NOT EXISTS ON learns (target, value)")
@@ -162,5 +153,5 @@ func NewLearnCommand(rtm *slack.RTM) *LearnCommand {
 		return nil
 	}
 
-	return &LearnCommand{rtm, db, ins, del, sel}
+	return &LearnCommand{rtm, ins, del, sel}
 }

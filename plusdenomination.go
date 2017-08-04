@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/nlopes/slack"
 	"strconv"
 	"strings"
@@ -13,7 +12,6 @@ import (
 
 type PlusDenominationCommand struct {
 	rtm *slack.RTM
-	db  *sql.DB
 	ins *sql.Stmt
 	del *sql.Stmt
 	sel *sql.Stmt
@@ -101,16 +99,9 @@ func (c *PlusDenominationCommand) Close() {
 	c.sel.Close()
 	c.ins.Close()
 	c.del.Close()
-	c.db.Close()
 }
 
-func NewPlusDenominationCommand(rtm *slack.RTM) *PlusDenominationCommand {
-	db, err := sql.Open("sqlite3", "./slackcat.db")
-	if err != nil {
-		fmt.Printf("error creating plus command: %v\n", err)
-		return nil
-	}
-
+func NewPlusDenominationCommand(rtm *slack.RTM, db *sql.DB) *PlusDenominationCommand {
 	db.Exec("CREATE TABLE plus_denominations (value INTEGER PRIMARY KEY NOT NULL, name TEXT)")
 
 	ins, err := db.Prepare("INSERT INTO plus_denominations(value, name) VALUES(?,?)")
@@ -131,5 +122,5 @@ func NewPlusDenominationCommand(rtm *slack.RTM) *PlusDenominationCommand {
 		return nil
 	}
 
-	return &PlusDenominationCommand{rtm, db, ins, del, sel}
+	return &PlusDenominationCommand{rtm, ins, del, sel}
 }

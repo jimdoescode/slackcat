@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/nlopes/slack"
 	"regexp"
 	"sort"
@@ -13,7 +12,6 @@ import (
 
 type PlusCommand struct {
 	rtm      *slack.RTM
-	db       *sql.DB
 	ins      *sql.Stmt
 	upd      *sql.Stmt
 	sel      *sql.Stmt
@@ -212,16 +210,9 @@ func (c *PlusCommand) Close() {
 	c.sel.Close()
 	c.upd.Close()
 	c.ins.Close()
-	c.db.Close()
 }
 
-func NewPlusCommand(rtm *slack.RTM) *PlusCommand {
-	db, err := sql.Open("sqlite3", "./slackcat.db")
-	if err != nil {
-		fmt.Printf("error creating plus command: %v\n", err)
-		return nil
-	}
-
+func NewPlusCommand(rtm *slack.RTM, db *sql.DB) *PlusCommand {
 	db.Exec("CREATE TABLE pluses (target TEXT PRIMARY KEY NOT NULL, count INTEGER)")
 
 	ins, err := db.Prepare("INSERT INTO pluses(target, count) VALUES(?,?)")
@@ -244,5 +235,5 @@ func NewPlusCommand(rtm *slack.RTM) *PlusCommand {
 
 	selDenom, err := db.Prepare("SELECT * FROM plus_denominations")
 
-	return &PlusCommand{rtm, db, ins, upd, sel, selDenom}
+	return &PlusCommand{rtm, ins, upd, sel, selDenom}
 }

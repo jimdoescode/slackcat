@@ -1,10 +1,13 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/nlopes/slack"
 	"log"
 	"os"
+	"path/filepath"
 )
 
 func main() {
@@ -16,6 +19,20 @@ func main() {
 
 	logger := log.New(os.Stdout, "slack-cat: ", log.Lshortfile|log.LstdFlags)
 	slack.SetLogger(logger)
+
+	exe, err := os.Executable()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Could not determine executable location")
+		os.Exit(1)
+	}
+
+	loc := filepath.Dir(exe)
+	db, err := sql.Open("sqlite3", filepath.Join(loc, "slackcat.db"))
+	defer db.Close()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Could not open database connection")
+		os.Exit(1)
+	}
 
 	client := slack.New(os.Args[1])
 	_, _, adminChan, err := client.OpenIMChannel(os.Args[2])
@@ -41,13 +58,13 @@ func main() {
 
 	//TODO: Add commands to this slice
 	cmds := []SlackCatCommand{
-		NewPlusCommand(rtm),
-		NewPlusDenominationCommand(rtm),
+		NewPlusCommand(rtm, db),
+		NewPlusDenominationCommand(rtm, db),
 		NewGiphyCommand(rtm),
 		NewHaltCommand(rtm),
 		NewUpdateCommand(rtm),
 		//Learn command should match everything so keep it last
-		NewLearnCommand(rtm),
+		NewLearnCommand(rtm, db),
 	}
 
 	defer func(cmds []SlackCatCommand) {
