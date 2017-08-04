@@ -5,6 +5,7 @@ package main
 // same directory that the code and git repo exist in.
 
 import (
+	"fmt"
 	"github.com/nlopes/slack"
 	"gopkg.in/src-d/go-git.v4"
 	"os"
@@ -49,7 +50,10 @@ func (c *UpdateCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) 
 	err = cmd.Run()
 
 	if err != nil {
-		status = c.rtm.NewOutgoingMessage("Error recompiling. Halting update.", msg.Channel)
+		status = c.rtm.NewOutgoingMessage(
+			fmt.Sprintf("Error recompiling (%v). Halting update.", err),
+			msg.Channel,
+		)
 		return status, err
 	}
 
