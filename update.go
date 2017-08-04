@@ -7,7 +7,9 @@ package main
 import (
 	"github.com/nlopes/slack"
 	"gopkg.in/src-d/go-git.v4"
+	"os"
 	"os/exec"
+	"path/filepath"
 )
 
 type UpdateCommand struct {
@@ -22,7 +24,13 @@ func (c *UpdateCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) 
 	status := c.rtm.NewOutgoingMessage("Updating repo...", msg.Channel)
 	c.rtm.SendMessage(status)
 
-	repo, err := git.PlainOpen("./")
+	exe, err := os.Executable()
+	if err != nil {
+		status = c.rtm.NewOutgoingMessage("Could not determine repo location. Halting update.", msg.Channel)
+		return status, err
+	}
+
+	repo, err := git.PlainOpen(filepath.Dir(exe))
 	if err != nil {
 		status = c.rtm.NewOutgoingMessage("Error opening repository. Halting update.", msg.Channel)
 		return status, err
