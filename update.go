@@ -32,7 +32,8 @@ func (c *UpdateCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) 
 		return status, err
 	}
 
-	repo, err := git.PlainOpen(filepath.Dir(exe))
+	root := filepath.Dir(exe)
+	repo, err := git.PlainOpen(root)
 	if err != nil {
 		status = c.rtm.NewOutgoingMessage("Error opening repository. Halting update.", msg.Channel)
 		return status, err
@@ -50,6 +51,7 @@ func (c *UpdateCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) 
 	var stderr bytes.Buffer
 	cmd := exec.Command("go", "build")
 	cmd.Stderr = &stderr
+	cmd.Dir = root
 	err = cmd.Run()
 
 	if err != nil {
