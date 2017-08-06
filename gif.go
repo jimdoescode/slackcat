@@ -22,7 +22,7 @@ func (c *GifCommand) Matches(msg *slack.Msg) bool {
 func (c *GifCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
 	txt := strings.SplitN(msg.Text, " ", 2)
 	q := url.QueryEscape(
-		strings.ToLower(txt[0][1:]),
+		strings.ToLower(txt[1]),
 	)
 
 	searchUrl := "https://www.google.com/search?source=lnms&tbm=isch&tbs=itp:animated,ift:gif&q=" + q
@@ -49,12 +49,12 @@ func (c *GifCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
 	resp.Body.Close()
 	found := c.match.FindStringSubmatch(string(body[:]))
 
-	if len(found) == 0 {
+	if found == nil {
 		out := c.rtm.NewOutgoingMessage("I got nothing for that.", msg.Channel)
 		return out, nil
 	}
 
-	return c.rtm.NewOutgoingMessage(found[0], msg.Channel), nil
+	return c.rtm.NewOutgoingMessage(found[1], msg.Channel), nil
 }
 
 func (c *GifCommand) GetSyntax() string {
@@ -68,6 +68,6 @@ func NewGifCommand(rtm *slack.RTM) *GifCommand {
 	return &GifCommand{
 		rtm,
 		&http.Client{},
-		regexp.MustCompile(`ou":"(.*?)"`),
+		regexp.MustCompile(`"ou":"(.*?)"`),
 	}
 }
