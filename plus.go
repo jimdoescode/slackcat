@@ -28,8 +28,7 @@ func (c *PlusCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
 	token := strings.ToLower(txt[0][1:])
 	owner, err := c.rtm.GetUserInfo(msg.User)
 	if err != nil {
-		fmt.Printf("error getting user info: %v\n", err)
-		return nil, nil
+		return nil, err
 	}
 
 	if len(txt) < 2 {

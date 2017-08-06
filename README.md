@@ -46,5 +46,7 @@ Commands
 - **Update** `Syntax: ?update`
 
   Will pull down the latest changes to slack cat and rebuild the binary then shut slack cat down so it can be restarted.
+- **Halt** `Syntax: ?halt`
 
+  Will stop the currently executing slack cat process. Depending upon set up it may be restarted automatically.
 *Multiple commands cannot currently be combined for safety reasons.*
