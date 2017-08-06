@@ -60,6 +60,7 @@ func main() {
 	cmds := []SlackCatCommand{
 		NewPlusCommand(rtm, db),
 		NewPlusDenominationCommand(rtm, db),
+		NewGifCommand(rtm),
 		NewGiphyCommand(rtm),
 		NewHaltCommand(rtm),
 		NewUpdateCommand(rtm),
