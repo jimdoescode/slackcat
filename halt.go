@@ -13,7 +13,7 @@ func (c *HaltCommand) Matches(msg *slack.Msg) bool {
 }
 
 func (c *HaltCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
-	status := c.rtm.NewOutgoingMessage("I'm shutting down for a sec...", msg.Channel)
+	status := c.rtm.NewOutgoingMessage("Brb...", msg.Channel)
 	c.rtm.SendMessage(status)
 	c.rtm.Disconnect()
 

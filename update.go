@@ -62,7 +62,7 @@ func (c *UpdateCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) 
 		return status, err
 	}
 
-	status = c.rtm.NewOutgoingMessage("Recompile done. Disconnecting...", msg.Channel)
+	status = c.rtm.NewOutgoingMessage("Recompile done. Brb...", msg.Channel)
 	c.rtm.SendMessage(status)
 
 	c.rtm.Disconnect()
