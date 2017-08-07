@@ -22,7 +22,7 @@ func (c *GifCommand) Matches(msg *slack.Msg) bool {
 func (c *GifCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
 	txt := strings.SplitN(msg.Text, " ", 2)
 	q := url.QueryEscape(
-		strings.ToLower(txt[1]),
+		c.parseTarget(txt[1]),
 	)
 
 	searchUrl := "https://www.google.com/search?source=lnms&tbm=isch&tbs=itp:animated,ift:gif&q=" + q
@@ -55,6 +55,34 @@ func (c *GifCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
 	}
 
 	return c.rtm.NewOutgoingMessage(found[1], msg.Channel), nil
+}
+
+func (c *GifCommand) parseTarget(txt string) string {
+	userReg := regexp.MustCompile("^.*?(<@(\\w+)>).*?$")
+	chanReg := regexp.MustCompile("^.*?(<#(\\w+)\\|?(\\w*)>).*?$")
+	if userReg.MatchString(txt) {
+		for _, match := range userReg.FindAllStringSubmatch(txt, -1) {
+			user, err := c.rtm.GetUserInfo(match[2])
+			if err == nil {
+				txt = strings.Replace(txt, match[1], user.Name, 1)
+			} else {
+				txt = strings.Replace(txt, match[1], match[2], 1)
+			}
+		}
+	}
+
+	if chanReg.MatchString(txt) {
+		for _, match := range chanReg.FindAllStringSubmatch(txt, -1) {
+			ch, err := c.rtm.GetChannelInfo(match[2])
+			if err == nil {
+				txt = strings.Replace(txt, match[1], ch.Name, 1)
+			} else {
+				txt = strings.Replace(txt, match[1], match[2], 1)
+			}
+		}
+	}
+
+	return strings.ToLower(txt)
 }
 
 func (c *GifCommand) GetSyntax() string {
