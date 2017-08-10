@@ -35,8 +35,8 @@ type GiphyCommand struct {
 	key    string
 }
 
-func (c *GiphyCommand) Matches(msg *slack.Msg) bool {
-	return strings.HasPrefix(msg.Text, "?giphy ")
+func (c *GiphyCommand) Matches(msg *slack.Msg) (bool, bool) {
+	return strings.HasPrefix(msg.Text, "?giphy "), false
 }
 
 func (c *GiphyCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {

@@ -12,31 +12,25 @@ import (
 
 type PlusCommand struct {
 	rtm      *slack.RTM
+	exp      *regexp.Regexp
 	ins      *sql.Stmt
 	upd      *sql.Stmt
 	sel      *sql.Stmt
 	selDenom *sql.Stmt
 }
 
-func (c *PlusCommand) Matches(msg *slack.Msg) bool {
-	return strings.HasPrefix(msg.Text, "?++ ") ||
-		strings.HasPrefix(msg.Text, "?-- ")
+func (c *PlusCommand) Matches(msg *slack.Msg) (bool, bool) {
+	return c.exp.MatchString(msg.Text), false
 }
 
 func (c *PlusCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
-	txt := strings.SplitN(msg.Text, " ", 3)
-	token := strings.ToLower(txt[0][1:])
+	vars := c.exp.FindStringSubmatch(msg.Text)
 	owner, err := c.rtm.GetUserInfo(msg.User)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(txt) < 2 {
-		out := c.rtm.NewOutgoingMessage(c.GetSyntax(), msg.Channel)
-		return out, nil
-	}
-
-	target := c.parseTarget(txt[1])
+	target := c.parseTarget(vars[2])
 
 	var val int
 	err = c.sel.QueryRow(target).Scan(&val)
@@ -46,7 +40,7 @@ func (c *PlusCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
 		val = 0
 	}
 
-	add := (token == "++")
+	add := (vars[1] == "++")
 
 	if add {
 		val += 1
@@ -63,7 +57,7 @@ func (c *PlusCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
 		fmt.Printf("error updating db: %v\n", err)
 	}
 
-	out := c.rtm.NewOutgoingMessage(c.getMessage(add, txt[1], owner.Name, val), msg.Channel)
+	out := c.rtm.NewOutgoingMessage(c.getMessage(add, vars[2], owner.Name, val), msg.Channel)
 	return out, err
 }
 
@@ -212,6 +206,7 @@ func (c *PlusCommand) Close() {
 }
 
 func NewPlusCommand(rtm *slack.RTM, db *sql.DB) *PlusCommand {
+	exp := regexp.MustCompile(`^\?(\+\+|\-\-) ([\w@<>\|#]+).*$`)
 	db.Exec("CREATE TABLE pluses (target TEXT PRIMARY KEY NOT NULL, count INTEGER)")
 
 	ins, err := db.Prepare("INSERT INTO pluses(target, count) VALUES(?,?)")
@@ -234,5 +229,5 @@ func NewPlusCommand(rtm *slack.RTM, db *sql.DB) *PlusCommand {
 
 	selDenom, err := db.Prepare("SELECT * FROM plus_denominations")
 
-	return &PlusCommand{rtm, ins, upd, sel, selDenom}
+	return &PlusCommand{rtm, exp, ins, upd, sel, selDenom}
 }

@@ -58,6 +58,7 @@ func main() {
 
 	//TODO: Add commands to this slice
 	cmds := []SlackCatCommand{
+		NewReactCommand(rtm, db),
 		NewPlusCommand(rtm, db),
 		NewPlusDenominationCommand(rtm, db),
 		NewGifCommand(rtm),
@@ -84,7 +85,8 @@ func main() {
 		switch ev := msg.Data.(type) {
 		case *slack.MessageEvent:
 			for _, cmd := range cmds {
-				if cmd.Matches(&ev.Msg) {
+				match, cont := cmd.Matches(&ev.Msg)
+				if match {
 					out, err := cmd.Execute(&ev.Msg)
 					if err != nil {
 						fmt.Printf("Command Error: %v\n", err)
@@ -93,7 +95,10 @@ func main() {
 					if out != nil {
 						rtm.SendMessage(out)
 					}
-					break
+
+					if !cont {
+						break
+					}
 				}
 			}
 
@@ -106,7 +111,7 @@ func main() {
 }
 
 type SlackCatCommand interface {
-	Matches(msg *slack.Msg) bool
+	Matches(msg *slack.Msg) (bool, bool)
 	Execute(msg *slack.Msg) (*slack.OutgoingMessage, error)
 	GetSyntax() string
 	Close()

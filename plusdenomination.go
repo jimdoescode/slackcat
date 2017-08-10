@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/nlopes/slack"
+	"regexp"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -12,14 +13,14 @@ import (
 
 type PlusDenominationCommand struct {
 	rtm *slack.RTM
+	exp *regexp.Regexp
 	ins *sql.Stmt
 	del *sql.Stmt
 	sel *sql.Stmt
 }
 
-func (c *PlusDenominationCommand) Matches(msg *slack.Msg) bool {
-	return strings.HasPrefix(msg.Text, "?++d") ||
-		strings.HasPrefix(msg.Text, "?--d")
+func (c *PlusDenominationCommand) Matches(msg *slack.Msg) (bool, bool) {
+	return (msg.Text == "?++d" || msg.Text == "?--d" || c.exp.MatchString(msg.Text)), false
 }
 
 func (c *PlusDenominationCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
@@ -102,6 +103,7 @@ func (c *PlusDenominationCommand) Close() {
 }
 
 func NewPlusDenominationCommand(rtm *slack.RTM, db *sql.DB) *PlusDenominationCommand {
+	exp := regexp.MustCompile(`^(?i)\?(\+\+|\-\-)d (\d+?) (.+?)$`)
 	db.Exec("CREATE TABLE plus_denominations (value INTEGER PRIMARY KEY NOT NULL, name TEXT)")
 
 	ins, err := db.Prepare("INSERT INTO plus_denominations(value, name) VALUES(?,?)")
@@ -122,5 +124,5 @@ func NewPlusDenominationCommand(rtm *slack.RTM, db *sql.DB) *PlusDenominationCom
 		return nil
 	}
 
-	return &PlusDenominationCommand{rtm, ins, del, sel}
+	return &PlusDenominationCommand{rtm, exp, ins, del, sel}
 }

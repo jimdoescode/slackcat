@@ -8,8 +8,8 @@ type HaltCommand struct {
 	rtm *slack.RTM
 }
 
-func (c *HaltCommand) Matches(msg *slack.Msg) bool {
-	return msg.Text == "?halt"
+func (c *HaltCommand) Matches(msg *slack.Msg) (bool, bool) {
+	return msg.Text == "?halt", false
 }
 
 func (c *HaltCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {

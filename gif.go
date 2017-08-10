@@ -15,8 +15,8 @@ type GifCommand struct {
 	match  *regexp.Regexp
 }
 
-func (c *GifCommand) Matches(msg *slack.Msg) bool {
-	return strings.HasPrefix(msg.Text, "?gif ")
+func (c *GifCommand) Matches(msg *slack.Msg) (bool, bool) {
+	return strings.HasPrefix(msg.Text, "?gif "), false
 }
 
 func (c *GifCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {

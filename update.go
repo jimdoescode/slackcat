@@ -18,8 +18,8 @@ type UpdateCommand struct {
 	rtm *slack.RTM
 }
 
-func (c *UpdateCommand) Matches(msg *slack.Msg) bool {
-	return msg.Text == "?update"
+func (c *UpdateCommand) Matches(msg *slack.Msg) (bool, bool) {
+	return msg.Text == "?update", false
 }
 
 func (c *UpdateCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {

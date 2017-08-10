@@ -10,77 +10,62 @@ import (
 
 type LearnCommand struct {
 	rtm *slack.RTM
+	exp *regexp.Regexp
 	ins *sql.Stmt
 	del *sql.Stmt
 	sel *sql.Stmt
 }
 
-func (c *LearnCommand) Matches(msg *slack.Msg) bool {
-	match := strings.HasPrefix(msg.Text, "?learn ") ||
-		strings.HasPrefix(msg.Text, "?unlearn ")
-
-	if !match {
-		txt := strings.SplitN(msg.Text, " ", 2)
-		if len(txt) < 1 || len(txt[0]) < 1 || txt[0][0] != '?' {
-			return false
-		}
-
-		token := strings.ToLower(txt[0][1:])
-		var val string
-		err := c.sel.QueryRow(token).Scan(&val)
-		match = err == nil
+func (c *LearnCommand) Matches(msg *slack.Msg) (bool, bool) {
+	if c.exp.MatchString(msg.Text) {
+		return true, false
 	}
 
-	return match
+	txt := strings.SplitN(msg.Text, " ", 2)
+	if len(txt) < 1 || len(txt[0]) < 1 || txt[0][0] != '?' {
+		return false, false
+	}
+
+	token := c.parseTarget(
+		strings.ToLower(txt[0][1:]),
+	)
+
+	var val string
+	err := c.sel.QueryRow(token).Scan(&val)
+
+	return err == nil, false
 }
 
 func (c *LearnCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
-	txt := strings.SplitN(msg.Text, " ", 3)
-	token := strings.ToLower(txt[0][1:])
+	if c.exp.MatchString(msg.Text) {
+		vars := c.exp.FindStringSubmatch(msg.Text)
+		dbCmd := c.ins
+		target := c.parseTarget(vars[2])
 
-	if token != "learn" && token != "unlearn" {
-		var val string
-		token = c.parseTarget(token)
-		err := c.sel.QueryRow(token).Scan(&val)
-		if err != nil {
-			fmt.Printf("error searching db: %v\n", err)
-			return nil, nil
+		out := c.rtm.NewOutgoingMessage(fmt.Sprintf("OK, learned %s", target), msg.Channel)
+		if vars[1] == "unlearn" {
+			dbCmd = c.del
+			out.Text = fmt.Sprintf("Unlearned %s", target)
 		}
 
-		out := c.rtm.NewOutgoingMessage(c.parseText(val), msg.Channel)
+		_, err := dbCmd.Exec(target, vars[3])
 		return out, err
 	}
 
-	if len(txt) < 3 {
-		out := c.rtm.NewOutgoingMessage(c.GetSyntax(), msg.Channel)
-		return out, nil
+	txt := strings.SplitN(msg.Text, " ", 2)
+	token := c.parseTarget(
+		strings.ToLower(txt[0][1:]),
+	)
+
+	var val string
+	err := c.sel.QueryRow(token).Scan(&val)
+	if err != nil {
+		fmt.Printf("error searching db: %v\n", err)
+		return nil, nil
 	}
 
-	target := c.parseTarget(txt[1])
-	if token == "learn" {
-		if target == token {
-			out := c.rtm.NewOutgoingMessage("We must go deeper!", msg.Channel)
-			return out, nil
-		}
-
-		_, err := c.ins.Exec(target, txt[2])
-		out := c.rtm.NewOutgoingMessage(fmt.Sprintf("OK, learned %s", txt[1]), msg.Channel)
-		return out, err
-	}
-
-	if token == "unlearn" {
-		if target == token {
-			out := c.rtm.NewOutgoingMessage("Don't incept me!", msg.Channel)
-			return out, nil
-		}
-
-		_, err := c.del.Exec(target, txt[2])
-		out := c.rtm.NewOutgoingMessage(fmt.Sprintf("Unlearned %s", txt[1]), msg.Channel)
-
-		return out, err
-	}
-
-	return nil, nil
+	out := c.rtm.NewOutgoingMessage(c.parseText(val), msg.Channel)
+	return out, nil
 }
 
 func (c *LearnCommand) GetSyntax() string {
@@ -131,6 +116,8 @@ func (c *LearnCommand) parseText(txt string) string {
 }
 
 func NewLearnCommand(rtm *slack.RTM, db *sql.DB) *LearnCommand {
+	exp := regexp.MustCompile(`^(?i)\?(learn|unlearn) ([\w@<>\|#]+) (.+?)$`)
+
 	db.Exec("CREATE TABLE learns (target TEXT NOT NULL, value TEXT NOT NULL)")
 	db.Exec("CREATE INDEX target_idx IF NOT EXISTS ON learns (target)")
 	db.Exec("CREATE INDEX target_value_idx IF NOT EXISTS ON learns (target, value)")
@@ -153,5 +140,5 @@ func NewLearnCommand(rtm *slack.RTM, db *sql.DB) *LearnCommand {
 		return nil
 	}
 
-	return &LearnCommand{rtm, ins, del, sel}
+	return &LearnCommand{rtm, exp, ins, del, sel}
 }
