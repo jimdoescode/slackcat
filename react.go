@@ -17,18 +17,7 @@ type ReactCommand struct {
 }
 
 func (c *ReactCommand) Matches(msg *slack.Msg) (bool, bool) {
-	if c.exp.MatchString(msg.Text) {
-		return true, false
-	}
-
-	txt := strings.ToLower(strings.TrimSpace(msg.Text))
-	if len(txt) < 1 {
-		return false, false
-	}
-
-	var val string
-	err := c.sel.QueryRow(txt).Scan(&val)
-	return err == nil, true
+	return true, true
 }
 
 func (c *ReactCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
@@ -51,24 +40,26 @@ func (c *ReactCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
 		return out, nil
 	}
 
-	txt := strings.ToLower(msg.Text)
+	txt := strings.ToLower(strings.TrimSpace(msg.Text))
 	if len(txt) < 1 {
 		return nil, nil
 	}
 
-	rows, err := c.sel.Query(txt)
+	rows, err := c.sel.Query()
 	if err != nil {
 		rows.Close()
 		return nil, err
 	}
 
 	for rows.Next() {
-		var emoji string
-		if err := rows.Scan(&emoji); err != nil {
+		var emoji, target string
+		if err := rows.Scan(&emoji, &target); err != nil {
 			continue
 		}
 
-		c.rtm.AddReaction(emoji, msgRef)
+		if strings.Contains(txt, target) {
+			c.rtm.AddReaction(emoji, msgRef)
+		}
 	}
 
 	rows.Close()
@@ -105,7 +96,7 @@ func NewReactCommand(rtm *slack.RTM, db *sql.DB) *ReactCommand {
 		return nil
 	}
 
-	sel, err := db.Prepare("SELECT emoji FROM reactions WHERE target=?")
+	sel, err := db.Prepare("SELECT emoji, target FROM reactions")
 	if err != nil {
 		fmt.Printf("error preparing reactions select: %v\n", err)
 		return nil
