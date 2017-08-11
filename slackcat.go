@@ -8,6 +8,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 )
 
 func main() {
@@ -58,7 +60,6 @@ func main() {
 
 	//TODO: Add commands to this slice
 	cmds := []SlackCatCommand{
-		NewReactCommand(rtm, db),
 		NewPlusCommand(rtm, db),
 		NewPlusDenominationCommand(rtm, db),
 		NewGifCommand(rtm),
@@ -67,6 +68,7 @@ func main() {
 		NewUpdateCommand(rtm),
 		//Learn command should match everything so keep it last
 		NewLearnCommand(rtm, db),
+		NewReactCommand(rtm, db),
 	}
 
 	defer func(cmds []SlackCatCommand) {
@@ -108,6 +110,34 @@ func main() {
 
 		}
 	}
+}
+
+func parseUsernamesAndChannels(client *slack.Client, txt string) string {
+	userReg := regexp.MustCompile("^.*?(<@(\\w+)>).*?$")
+	chanReg := regexp.MustCompile("^.*?(<#(\\w+)\\|?(\\w*)>).*?$")
+	if userReg.MatchString(txt) {
+		for _, match := range userReg.FindAllStringSubmatch(txt, -1) {
+			user, err := client.GetUserInfo(match[2])
+			if err == nil {
+				txt = strings.Replace(txt, match[1], user.Name, 1)
+			} else {
+				txt = strings.Replace(txt, match[1], match[2], 1)
+			}
+		}
+	}
+
+	if chanReg.MatchString(txt) {
+		for _, match := range chanReg.FindAllStringSubmatch(txt, -1) {
+			ch, err := client.GetChannelInfo(match[2])
+			if err == nil {
+				txt = strings.Replace(txt, match[1], ch.Name, 1)
+			} else {
+				txt = strings.Replace(txt, match[1], match[2], 1)
+			}
+		}
+	}
+
+	return txt
 }
 
 type SlackCatCommand interface {

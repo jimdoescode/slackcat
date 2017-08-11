@@ -25,6 +25,7 @@ func (c *ReactCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
 
 	if c.exp.MatchString(msg.Text) {
 		vars := c.exp.FindStringSubmatch(msg.Text)
+		target := strings.ToLower(parseUsernamesAndChannels(&c.rtm.Client, strings.TrimSpace(vars[3])))
 		dbCmd := c.ins
 		out := c.rtm.NewOutgoingMessage("Got it.", msg.Channel)
 		if vars[1] == "unreact" {
@@ -32,7 +33,7 @@ func (c *ReactCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
 			out.Text = fmt.Sprintf("Removed :%s: reaction", vars[2])
 		}
 
-		_, err := dbCmd.Exec(vars[3], vars[2])
+		_, err := dbCmd.Exec(target, vars[2])
 		if err != nil {
 			return nil, err
 		}
@@ -40,7 +41,7 @@ func (c *ReactCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
 		return out, nil
 	}
 
-	txt := strings.ToLower(strings.TrimSpace(msg.Text))
+	txt := strings.ToLower(parseUsernamesAndChannels(&c.rtm.Client, strings.TrimSpace(msg.Text)))
 	if len(txt) < 1 {
 		return nil, nil
 	}
