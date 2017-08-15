@@ -71,6 +71,10 @@ func main() {
 		NewReactCommand(rtm, db),
 	}
 
+	//Help is a meta command so it needs to be handled a
+	//little differently than normal slack cat commands
+	cmds = append([]SlackCatCommand{NewHelpCommand(rtm, cmds)}, cmds...)
+
 	defer func(cmds []SlackCatCommand) {
 		for _, cmd := range cmds {
 			cmd.Close()

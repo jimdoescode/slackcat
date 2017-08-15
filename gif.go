@@ -58,7 +58,7 @@ func (c *GifCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
 }
 
 func (c *GifCommand) GetSyntax() string {
-	return "?gif <query>"
+	return "?gif <search>"
 }
 
 func (c *GifCommand) Close() {
