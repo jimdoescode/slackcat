@@ -198,6 +198,10 @@ func (c *PlusCommand) GetSyntax() string {
 	return "?++|-- <target>"
 }
 
+func (c *PlusCommand) GetDescription() string {
+	return "Make slack cat grant or remove meaningless internet points"
+}
+
 func (c *PlusCommand) Close() {
 	c.selDenom.Close()
 	c.sel.Close()

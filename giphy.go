@@ -96,6 +96,10 @@ func (c *GiphyCommand) GetSyntax() string {
 	return "?giphy <search>"
 }
 
+func (c *GiphyCommand) GetDescription() string {
+	return "Finds an image using giphy search. (It's better to use `?gif` instead)"
+}
+
 func (c *GiphyCommand) Close() {
 
 }

@@ -96,6 +96,10 @@ func (c *PlusDenominationCommand) GetSyntax() string {
 	return "?(++|--)d <plus count> <name>"
 }
 
+func (c *PlusDenominationCommand) GetDescription() string {
+	return "Add or remove denominations for pluses. To view the currently set demoninations type `?++d`"
+}
+
 func (c *PlusDenominationCommand) Close() {
 	c.sel.Close()
 	c.ins.Close()

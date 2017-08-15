@@ -148,6 +148,7 @@ type SlackCatCommand interface {
 	Matches(msg *slack.Msg) (bool, bool)
 	Execute(msg *slack.Msg) (*slack.OutgoingMessage, error)
 	GetSyntax() string
+	GetDescription() string
 	Close()
 }
 

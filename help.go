@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/nlopes/slack"
-	"reflect"
 	"text/tabwriter"
 )
 
@@ -20,10 +19,15 @@ func (c *HelpCommand) Matches(msg *slack.Msg) (bool, bool) {
 func (c *HelpCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
 	buf := bytes.NewBufferString("Here are all my known commands...\n```")
 	w := tabwriter.NewWriter(buf, 4, 0, 1, ' ', tabwriter.AlignRight)
+	f := "%s\n\t%s\n\n"
+
+	//Add the help command syntax
+	fmt.Fprintf(w, f, c.GetSyntax(), c.GetDescription())
+
 	for _, cmd := range c.cmds {
-		r := reflect.TypeOf(cmd).Elem()
-		fmt.Fprintf(w, "%s:\t %s\n", r.Name(), cmd.GetSyntax())
+		fmt.Fprintf(w, f, cmd.GetSyntax(), cmd.GetDescription())
 	}
+
 	fmt.Fprint(w, "```")
 	w.Flush()
 
@@ -32,6 +36,10 @@ func (c *HelpCommand) Execute(msg *slack.Msg) (*slack.OutgoingMessage, error) {
 
 func (c *HelpCommand) GetSyntax() string {
 	return "?help"
+}
+
+func (c *HelpCommand) GetDescription() string {
+	return "Display this help message"
 }
 
 func (c *HelpCommand) Close() {

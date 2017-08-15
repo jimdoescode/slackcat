@@ -72,6 +72,10 @@ func (c *ReactCommand) GetSyntax() string {
 	return "?(un)react <emoji> to <string>"
 }
 
+func (c *ReactCommand) GetDescription() string {
+	return "Make slack cat add reactions to certain phrases"
+}
+
 func (c *ReactCommand) Close() {
 	c.sel.Close()
 	c.del.Close()

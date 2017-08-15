@@ -61,6 +61,10 @@ func (c *GifCommand) GetSyntax() string {
 	return "?gif <search>"
 }
 
+func (c *GifCommand) GetDescription() string {
+	return "Uses google image search to find a gif matching the search phrase"
+}
+
 func (c *GifCommand) Close() {
 }
 

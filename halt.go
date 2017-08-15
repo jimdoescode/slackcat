@@ -24,6 +24,10 @@ func (c *HaltCommand) GetSyntax() string {
 	return "?halt"
 }
 
+func (c *HaltCommand) GetDescription() string {
+	return "Shut down slack cat. It should automatically restart"
+}
+
 func (c *HaltCommand) Close() {
 }
 

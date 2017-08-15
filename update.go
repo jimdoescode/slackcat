@@ -74,6 +74,10 @@ func (c *UpdateCommand) GetSyntax() string {
 	return "?update"
 }
 
+func (c *UpdateCommand) GetDescription() string {
+	return "Make slack cat update its repo and recompile."
+}
+
 func (c *UpdateCommand) Close() {
 }
 

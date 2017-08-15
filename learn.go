@@ -72,6 +72,10 @@ func (c *LearnCommand) GetSyntax() string {
 	return "?(un)learn <target> <value>"
 }
 
+func (c *LearnCommand) GetDescription() string {
+	return "Make slack cat associate two things. These associations can be randomly displayed by typing `?<target>`"
+}
+
 func (c *LearnCommand) Close() {
 	c.sel.Close()
 	c.del.Close()
